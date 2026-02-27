@@ -1,13 +1,13 @@
 {
   "name": "todaystask",
   "private": true,
+  "workspaces": [
+    "clock-app"
+  ],
   "scripts": {
-    "dev": "npm --prefix clock-app run dev",
-    "build": "npm --prefix clock-app run build",
-    "start": "npm --prefix clock-app run start",
-    "lint": "npm --prefix clock-app run lint"
-  },
-  "dependencies": {
-    "framer-motion": "^12.34.3"
+    "dev": "npm run dev --workspace clock-app",
+    "build": "npm run build --workspace clock-app",
+    "start": "npm run start --workspace clock-app",
+    "lint": "npm run lint --workspace clock-app"
   }
 }
