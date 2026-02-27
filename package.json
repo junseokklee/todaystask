@@ -1,4 +1,12 @@
 {
+  "name": "todaystask",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix clock-app run dev",
+    "build": "npm --prefix clock-app run build",
+    "start": "npm --prefix clock-app run start",
+    "lint": "npm --prefix clock-app run lint"
+  },
   "dependencies": {
     "framer-motion": "^12.34.3"
   }
