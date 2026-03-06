@@ -13,7 +13,6 @@ interface Task {
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedHours, setSelectedHours] = useState<number[]>([]);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
 
@@ -67,8 +66,6 @@ export default function Home() {
   };
 
   const toggleHour = (hour: number) => {
-    setSelectedTask(null);
-
     if (selectedHours.length === 0) {
       setSelectedHours([hour]);
       return;
@@ -122,8 +119,14 @@ export default function Home() {
 
   const deleteTask = (id: number) => {
     setTasks(tasks.filter((t) => t.id !== id));
-    setSelectedTask(null);
   };
+
+  const sortedTasks = [...tasks].sort(
+    (a, b) => a.start - b.start || a.end - b.end
+  );
+
+  const formatHour = (hour: number) =>
+    `${String(hour).padStart(2, "0")}:00`;
 
   const pastelColors = [
     "#FFB3BA",
@@ -237,9 +240,6 @@ export default function Home() {
                     fill={getTaskColor(index)}
                     stroke="black"
                     strokeWidth="2"
-                    onClick={() =>
-                      setSelectedTask(task)
-                    }
                     onMouseEnter={(e) => {
                       if (!canFitInside) {
                         setTooltip({
@@ -358,6 +358,82 @@ export default function Home() {
             </button>
           </div>
         </div>
+
+        <div
+          style={{
+            width: "320px",
+            background: "white",
+            padding: "24px",
+            borderRadius: "20px",
+            boxShadow: "0 6px 30px rgba(0,0,0,0.08)",
+            alignSelf: "flex-start",
+            maxHeight: "calc(100vh - 80px)",
+            overflowY: "auto",
+          }}
+        >
+          <h3 style={{ marginTop: 0, marginBottom: "14px" }}>
+            시간대별 일정
+          </h3>
+
+          {sortedTasks.length === 0 ? (
+            <p style={{ margin: 0, color: "#666" }}>
+              등록된 일정이 없습니다.
+            </p>
+          ) : (
+            <div style={{ display: "grid", gap: "10px" }}>
+              {sortedTasks.map((task) => (
+                <div
+                  key={task.id}
+                  style={{
+                    border: "1px solid #e8e8e8",
+                    borderRadius: "12px",
+                    padding: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {formatHour(task.start)} - {formatHour(task.end)}
+                  </div>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: task.detail
+                        ? "4px"
+                        : "10px",
+                    }}
+                  >
+                    {task.title}
+                  </div>
+                  {task.detail && (
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#555",
+                        marginBottom: "10px",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {task.detail}
+                    </div>
+                  )}
+                  <button
+                    onClick={() =>
+                      deleteTask(task.id)
+                    }
+                    style={deleteButtonStyle}
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -378,6 +454,17 @@ const buttonStyle = {
   border: "none",
   background: "#1877F2",
   color: "white",
+  fontWeight: "bold",
+  cursor: "pointer",
+};
+
+const deleteButtonStyle = {
+  width: "100%",
+  padding: "8px",
+  borderRadius: "8px",
+  border: "1px solid #e0e0e0",
+  background: "#f4f4f4",
+  color: "#222",
   fontWeight: "bold",
   cursor: "pointer",
 };
