@@ -1,13 +1,26 @@
 {
   "name": "todaystask",
+  "version": "0.1.0",
   "private": true,
-  "workspaces": [
-    "clock-app"
-  ],
   "scripts": {
-    "dev": "npm run dev --workspace clock-app",
-    "build": "npm run build --workspace clock-app",
-    "start": "npm run start --workspace clock-app",
-    "lint": "npm run lint --workspace clock-app"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "next": "^15.5.12",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
