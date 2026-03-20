@@ -54,7 +54,6 @@ const formatTime = (date: Date) =>
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedHours, setSelectedHours] = useState<number[]>([]);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -110,8 +109,6 @@ export default function Home() {
   };
 
   const toggleHour = (hour: number) => {
-    setSelectedTask(null);
-
     if (selectedHours.length === 0) {
       setSelectedHours([hour]);
       return;
@@ -166,8 +163,13 @@ export default function Home() {
 
   const deleteTask = (id: number) => {
     setTasks(tasks.filter((task) => task.id !== id));
-    setSelectedTask((current) => (current?.id === id ? null : current));
   };
+
+  const sortedTasks = [...tasks].sort(
+    (a, b) => a.start - b.start || a.end - b.end,
+  );
+
+  const formatHour = (hour: number) => `${String(hour).padStart(2, "0")}:00`;
 
   const getTaskColor = (index: number) =>
     pastelColors[index % pastelColors.length];
@@ -260,9 +262,8 @@ export default function Home() {
                   <path
                     d={createArc(task.start, task.end)}
                     fill={getTaskColor(index)}
-                    stroke={selectedTask?.id === task.id ? "#111827" : "black"}
+                    stroke="black"
                     strokeWidth="2"
-                    onClick={() => setSelectedTask(task)}
                     onMouseEnter={(e) => {
                       if (!canFitInside) {
                         setTooltip({
@@ -393,32 +394,66 @@ export default function Home() {
 
         <div
           style={{
-            width: "280px",
+            width: "320px",
             background: "white",
             padding: "24px",
             borderRadius: "20px",
             boxShadow: "0 6px 30px rgba(0,0,0,0.08)",
+            alignSelf: "flex-start",
+            maxHeight: "calc(100vh - 80px)",
+            overflowY: "auto",
           }}
         >
-          <h3 style={{ marginTop: 0 }}>선택한 일정</h3>
-          {selectedTask ? (
-            <>
-              <p style={panelTitleStyle}>{selectedTask.title}</p>
-              <p style={panelMetaStyle}>
-                {selectedTask.start}:00 - {selectedTask.end}:00
-              </p>
-              <p style={panelBodyStyle}>
-                {selectedTask.detail || "상세 내용이 없습니다."}
-              </p>
-              <button
-                onClick={() => deleteTask(selectedTask.id)}
-                style={secondaryButtonStyle}
-              >
-                삭제
-              </button>
-            </>
+          <h3 style={{ marginTop: 0, marginBottom: "14px" }}>시간대별 일정</h3>
+
+          {sortedTasks.length === 0 ? (
+            <p style={{ margin: 0, color: "#666" }}>등록된 일정이 없습니다.</p>
           ) : (
-            <p style={panelBodyStyle}>시계의 업무 영역을 클릭하면 상세 정보를 볼 수 있습니다.</p>
+            <div style={{ display: "grid", gap: "10px" }}>
+              {sortedTasks.map((task) => (
+                <div
+                  key={task.id}
+                  style={{
+                    border: "1px solid #e8e8e8",
+                    borderRadius: "12px",
+                    padding: "12px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "13px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {formatHour(task.start)} - {formatHour(task.end)}
+                  </div>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      marginBottom: task.detail ? "4px" : "10px",
+                    }}
+                  >
+                    {task.title}
+                  </div>
+                  {task.detail && (
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        color: "#555",
+                        marginBottom: "10px",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {task.detail}
+                    </div>
+                  )}
+                  <button onClick={() => deleteTask(task.id)} style={deleteButtonStyle}>
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>
@@ -445,31 +480,13 @@ const buttonStyle = {
   cursor: "pointer",
 } as const;
 
-const secondaryButtonStyle = {
+const deleteButtonStyle = {
   width: "100%",
-  padding: "10px",
+  padding: "8px",
   borderRadius: "8px",
-  border: "1px solid #fecaca",
-  background: "#fff1f2",
-  color: "#b91c1c",
+  border: "1px solid #e0e0e0",
+  background: "#f4f4f4",
+  color: "#222",
   fontWeight: "bold",
   cursor: "pointer",
-} as const;
-
-const panelTitleStyle = {
-  marginBottom: "8px",
-  fontSize: "18px",
-  fontWeight: 700,
-  color: "#111827",
-} as const;
-
-const panelMetaStyle = {
-  marginTop: 0,
-  marginBottom: "16px",
-  color: "#4b5563",
-} as const;
-
-const panelBodyStyle = {
-  color: "#374151",
-  lineHeight: 1.6,
 } as const;
