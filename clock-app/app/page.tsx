@@ -58,22 +58,30 @@ export default function Home() {
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setNow(new Date());
+    });
+
     const timer = window.setInterval(() => {
       setNow(new Date());
     }, 1000);
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearInterval(timer);
+    };
   }, []);
 
-  const currentHour =
-    now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const currentHour = now
+    ? now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600
+    : 0;
   const currentHandEnd = polar(hourToAngle(currentHour), radius * 0.88);
-  const activeTasks = tasks.filter(
-    (task) => currentHour >= task.start && currentHour < task.end,
-  );
+  const activeTasks = now
+    ? tasks.filter((task) => currentHour >= task.start && currentHour < task.end)
+    : [];
 
   const measureTextWidth = (text: string, fontSize = 14) => {
     if (typeof window === "undefined") return 0;
@@ -194,7 +202,7 @@ export default function Home() {
               color: "#4b5563",
             }}
           >
-            현재 시간 {formatTime(now)}
+            현재 시간 {now ? formatTime(now) : "--:--:--"}
           </p>
 
           <svg width={size} height={size}>
