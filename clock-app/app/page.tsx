@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Task {
   id: number;
@@ -10,52 +10,87 @@ interface Task {
   detail: string;
 }
 
+interface TooltipState {
+  x: number;
+  y: number;
+  text: string;
+}
+
+const size = 420;
+const center = size / 2;
+const radius = 170;
+const pastelColors = [
+  "#FFB3BA",
+  "#FFDFBA",
+  "#FFFFBA",
+  "#BAFFC9",
+  "#BAE1FF",
+  "#E3BAFF",
+  "#FFD6E0",
+  "#D5FFBA",
+];
+
+const hourToAngle = (hour: number) =>
+  (hour / 24) * 2 * Math.PI - Math.PI / 2;
+
+const polar = (angle: number, r: number) => {
+  const x = center + r * Math.cos(angle);
+  const y = center + r * Math.sin(angle);
+
+  return {
+    x: Number(x.toFixed(2)),
+    y: Number(y.toFixed(2)),
+  };
+};
+
+const formatTime = (date: Date) =>
+  date.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
 export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedHours, setSelectedHours] = useState<number[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
-  // 🔥 커스텀 툴팁 state
-  const [tooltip, setTooltip] = useState<{
-    x: number;
-    y: number;
-    text: string;
-  } | null>(null);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(new Date());
+    }, 1000);
 
-  const size = 420;
-  const center = size / 2;
-  const radius = 170;
+    return () => window.clearInterval(timer);
+  }, []);
 
-  const hourToAngle = (hour: number) =>
-    (hour / 24) * 2 * Math.PI - Math.PI / 2;
-
-  const polar = (angle: number, r: number) => {
-    const x = center + r * Math.cos(angle);
-    const y = center + r * Math.sin(angle);
-    return {
-      x: Number(x.toFixed(2)),
-      y: Number(y.toFixed(2)),
-    };
-  };
+  const currentHour =
+    now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  const currentHandEnd = polar(hourToAngle(currentHour), radius * 0.88);
+  const activeTasks = tasks.filter(
+    (task) => currentHour >= task.start && currentHour < task.end,
+  );
 
   const measureTextWidth = (text: string, fontSize = 14) => {
     if (typeof window === "undefined") return 0;
+
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     if (!ctx) return 0;
-    ctx.font = `bold ${fontSize}px NanumGothic`;
+
+    ctx.font = `bold ${fontSize}px Nanum Gothic`;
     return ctx.measureText(text).width;
   };
 
   const createArc = (start: number, end: number) => {
     const startAngle = hourToAngle(start);
     const endAngle = hourToAngle(end);
-
     const startOuter = polar(startAngle, radius);
     const endOuter = polar(endAngle, radius);
-
     const largeArc = end - start > 12 ? 1 : 0;
 
     return `
@@ -82,19 +117,20 @@ export default function Home() {
       return;
     }
 
-    const newMin = Math.min(min, hour);
-    const newMax = Math.max(max, hour);
+    const nextStart = Math.min(min, hour);
+    const nextEnd = Math.max(max, hour);
+    const nextSelection = [];
 
-    const newSelection = [];
-    for (let i = newMin; i <= newMax; i++) {
-      newSelection.push(i);
+    for (let value = nextStart; value <= nextEnd; value += 1) {
+      nextSelection.push(value);
     }
 
-    setSelectedHours(newSelection);
+    setSelectedHours(nextSelection);
   };
 
   const getMergedRange = () => {
     if (selectedHours.length === 0) return null;
+
     const sorted = [...selectedHours].sort((a, b) => a - b);
     return {
       start: sorted[0],
@@ -104,14 +140,14 @@ export default function Home() {
 
   const addTask = () => {
     const range = getMergedRange();
-    if (!range || !title) return;
+    if (!range || !title.trim()) return;
 
     const newTask: Task = {
       id: Date.now(),
       start: range.start,
       end: range.end,
-      title,
-      detail,
+      title: title.trim(),
+      detail: detail.trim(),
     };
 
     setTasks([...tasks, newTask]);
@@ -121,20 +157,9 @@ export default function Home() {
   };
 
   const deleteTask = (id: number) => {
-    setTasks(tasks.filter((t) => t.id !== id));
-    setSelectedTask(null);
+    setTasks(tasks.filter((task) => task.id !== id));
+    setSelectedTask((current) => (current?.id === id ? null : current));
   };
-
-  const pastelColors = [
-    "#FFB3BA",
-    "#FFDFBA",
-    "#FFFFBA",
-    "#BAFFC9",
-    "#BAE1FF",
-    "#E3BAFF",
-    "#FFD6E0",
-    "#D5FFBA",
-  ];
 
   const getTaskColor = (index: number) =>
     pastelColors[index % pastelColors.length];
@@ -150,7 +175,7 @@ export default function Home() {
         fontFamily: "Nanum Gothic, sans-serif",
       }}
     >
-      <div style={{ display: "flex", gap: "40px" }}>
+      <div style={{ display: "flex", gap: "40px", alignItems: "flex-start" }}>
         <div
           style={{
             background: "white",
@@ -160,9 +185,17 @@ export default function Home() {
             position: "relative",
           }}
         >
-          <h2 style={{ textAlign: "center" }}>
-            시간별 업무 스케줄러
-          </h2>
+          <h2 style={{ textAlign: "center", marginTop: 0 }}>시간별 업무 스케줄러</h2>
+          <p
+            style={{
+              textAlign: "center",
+              marginTop: "-8px",
+              marginBottom: "20px",
+              color: "#4b5563",
+            }}
+          >
+            현재 시간 {formatTime(now)}
+          </p>
 
           <svg width={size} height={size}>
             <circle
@@ -173,13 +206,12 @@ export default function Home() {
               stroke="black"
               strokeWidth="2"
             />
-            <circle cx={center} cy={center} r={4} fill="black" />
 
             {Array.from({ length: 24 }).map((_, i) => {
               const end = polar(hourToAngle(i), radius);
               return (
                 <line
-                  key={i}
+                  key={`grid-${i}`}
                   x1={center}
                   y1={center}
                   x2={end.x}
@@ -194,13 +226,9 @@ export default function Home() {
               const isSelected = selectedHours.includes(i);
               return (
                 <path
-                  key={i}
+                  key={`slot-${i}`}
                   d={createArc(i, i + 1)}
-                  fill={
-                    isSelected
-                      ? "rgba(24,119,242,0.35)"
-                      : "transparent"
-                  }
+                  fill={isSelected ? "rgba(24,119,242,0.35)" : "transparent"}
                   onClick={() => toggleHour(i)}
                   style={{ cursor: "pointer" }}
                 />
@@ -211,41 +239,28 @@ export default function Home() {
               const startAngle = hourToAngle(task.start);
               const endAngle = hourToAngle(task.end);
               const angleSize = endAngle - startAngle;
-
-              const midHour =
-                (task.start + task.end) / 2;
+              const midHour = (task.start + task.end) / 2;
               const midAngle = hourToAngle(midHour);
-
               const textRadius = radius * 0.6;
               const textPos = polar(midAngle, textRadius);
-
-              const textWidth =
-                measureTextWidth(task.title, 14);
-              const arcLength =
-                textRadius * angleSize;
-
-              const canFitInside =
-                textWidth < arcLength * 0.8;
+              const textWidth = measureTextWidth(task.title, 14);
+              const arcLength = textRadius * angleSize;
+              const canFitInside = textWidth < arcLength * 0.8;
 
               return (
                 <g key={task.id}>
                   <path
-                    d={createArc(
-                      task.start,
-                      task.end
-                    )}
+                    d={createArc(task.start, task.end)}
                     fill={getTaskColor(index)}
-                    stroke="black"
+                    stroke={selectedTask?.id === task.id ? "#111827" : "black"}
                     strokeWidth="2"
-                    onClick={() =>
-                      setSelectedTask(task)
-                    }
+                    onClick={() => setSelectedTask(task)}
                     onMouseEnter={(e) => {
                       if (!canFitInside) {
                         setTooltip({
                           x: e.clientX,
                           y: e.clientY,
-                          text: `${task.title} (${task.start}시 ~ ${task.end}시)`,
+                          text: `${task.title} (${task.start}:00 - ${task.end}:00)`,
                         });
                       }
                     }}
@@ -258,13 +273,11 @@ export default function Home() {
                                 x: e.clientX,
                                 y: e.clientY,
                               }
-                            : null
+                            : null,
                         );
                       }
                     }}
-                    onMouseLeave={() =>
-                      setTooltip(null)
-                    }
+                    onMouseLeave={() => setTooltip(null)}
                     style={{ cursor: "pointer" }}
                   />
 
@@ -277,9 +290,7 @@ export default function Home() {
                       fontSize="14"
                       fontWeight="bold"
                       fill="black"
-                      style={{
-                        pointerEvents: "none",
-                      }}
+                      style={{ pointerEvents: "none" }}
                     >
                       {task.title}
                     </text>
@@ -288,14 +299,22 @@ export default function Home() {
               );
             })}
 
+            <line
+              x1={center}
+              y1={center}
+              x2={currentHandEnd.x}
+              y2={currentHandEnd.y}
+              stroke="#dc2626"
+              strokeWidth="4"
+              strokeLinecap="round"
+            />
+            <circle cx={center} cy={center} r={7} fill="#dc2626" />
+
             {Array.from({ length: 24 }).map((_, i) => {
-              const pos = polar(
-                hourToAngle(i),
-                radius + 18
-              );
+              const pos = polar(hourToAngle(i), radius + 18);
               return (
                 <text
-                  key={i}
+                  key={`label-${i}`}
                   x={pos.x}
                   y={pos.y}
                   textAnchor="middle"
@@ -308,15 +327,13 @@ export default function Home() {
             })}
           </svg>
 
-          {/* 🔥 즉시 표시 커스텀 툴팁 */}
           {tooltip && (
             <div
               style={{
                 position: "fixed",
                 top: tooltip.y + 12,
                 left: tooltip.x + 12,
-                background:
-                  "rgba(0,0,0,0.85)",
+                background: "rgba(0,0,0,0.85)",
                 color: "white",
                 padding: "6px 10px",
                 borderRadius: "8px",
@@ -330,33 +347,71 @@ export default function Home() {
             </div>
           )}
 
+          <div
+            style={{
+              marginTop: "20px",
+              padding: "14px 16px",
+              borderRadius: "12px",
+              background: activeTasks.length > 0 ? "#fef3c7" : "#f3f4f6",
+              color: "#111827",
+            }}
+          >
+            {activeTasks.length > 0
+              ? `지금은 ${activeTasks.map((task) => task.title).join(", ")} 시간입니다.`
+              : "현재 진행 중인 일정이 없습니다."}
+          </div>
+
           <div style={{ marginTop: "20px" }}>
             <input
               placeholder="업무 제목"
               value={title}
-              onChange={(e) =>
-                setTitle(e.target.value)
-              }
+              onChange={(e) => setTitle(e.target.value)}
               style={inputStyle}
             />
             <textarea
               placeholder="상세 내용"
               value={detail}
-              onChange={(e) =>
-                setDetail(e.target.value)
-              }
+              onChange={(e) => setDetail(e.target.value)}
               style={{
                 ...inputStyle,
                 height: "80px",
               }}
             />
-            <button
-              onClick={addTask}
-              style={buttonStyle}
-            >
+            <button onClick={addTask} style={buttonStyle}>
               등록
             </button>
           </div>
+        </div>
+
+        <div
+          style={{
+            width: "280px",
+            background: "white",
+            padding: "24px",
+            borderRadius: "20px",
+            boxShadow: "0 6px 30px rgba(0,0,0,0.08)",
+          }}
+        >
+          <h3 style={{ marginTop: 0 }}>선택한 일정</h3>
+          {selectedTask ? (
+            <>
+              <p style={panelTitleStyle}>{selectedTask.title}</p>
+              <p style={panelMetaStyle}>
+                {selectedTask.start}:00 - {selectedTask.end}:00
+              </p>
+              <p style={panelBodyStyle}>
+                {selectedTask.detail || "상세 내용이 없습니다."}
+              </p>
+              <button
+                onClick={() => deleteTask(selectedTask.id)}
+                style={secondaryButtonStyle}
+              >
+                삭제
+              </button>
+            </>
+          ) : (
+            <p style={panelBodyStyle}>시계의 업무 영역을 클릭하면 상세 정보를 볼 수 있습니다.</p>
+          )}
         </div>
       </div>
     </div>
@@ -369,7 +424,7 @@ const inputStyle = {
   marginBottom: "10px",
   borderRadius: "8px",
   border: "1px solid #ddd",
-};
+} as const;
 
 const buttonStyle = {
   width: "100%",
@@ -380,4 +435,33 @@ const buttonStyle = {
   color: "white",
   fontWeight: "bold",
   cursor: "pointer",
-};
+} as const;
+
+const secondaryButtonStyle = {
+  width: "100%",
+  padding: "10px",
+  borderRadius: "8px",
+  border: "1px solid #fecaca",
+  background: "#fff1f2",
+  color: "#b91c1c",
+  fontWeight: "bold",
+  cursor: "pointer",
+} as const;
+
+const panelTitleStyle = {
+  marginBottom: "8px",
+  fontSize: "18px",
+  fontWeight: 700,
+  color: "#111827",
+} as const;
+
+const panelMetaStyle = {
+  marginTop: 0,
+  marginBottom: "16px",
+  color: "#4b5563",
+} as const;
+
+const panelBodyStyle = {
+  color: "#374151",
+  lineHeight: 1.6,
+} as const;
